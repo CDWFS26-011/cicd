@@ -28,6 +28,18 @@ services:
       - ci_network
     restart: unless-stopped
 
+  jenkins_cli_setup:
+    image: jenkins/jenkins:lts-jdk21
+    container_name: jenkins_cli_setup
+    depends_on:
+      - jenkins
+    volumes:
+      - ./jenkins/init_agents.sh:/init_agents.sh
+    networks:
+      - ci_network
+    entrypoint: ["/bin/bash", "/init_agents.sh"]
+    restart: "no"
+
 volumes:
   jenkins_home:
 
