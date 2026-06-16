@@ -53,8 +53,20 @@ services:
     entrypoint: ["/bin/bash", "/init_agents.sh"]
     restart: "no"
 
+  registry:
+    image: registry:3
+    container_name: docker_registry
+    ports:
+      - "5000:5000"
+    volumes:
+      - registry_data:/var/lib/registry
+    networks:
+      - ci_network
+    restart: unless-stopped
+
 volumes:
   jenkins_home:
+  registry_data:
 
 networks:
   ci_network:
