@@ -37,11 +37,35 @@ pipeline {
             }
         }
 
+        stage('Deploy to Host') {
+            agent {
+                label 'ssh_agent'
+            }
+            steps {
+                sh """
+                    docker pull ${REGISTRY}/${IMAGE_NAME}:latest
+                    docker stop ${IMAGE_NAME} || true
+                    docker rm ${IMAGE_NAME} || true
+                    docker run -d \
+                        --name ${IMAGE_NAME} \
+                        --restart unless-stopped \
+                        -p 5000:5000 \
+                        ${REGISTRY}/${IMAGE_NAME}:latest
+                """
+            }
+        }
+
     }
 
     post {
         always {
             echo 'Pipeline terminé.'
+        }
+        success {
+            echo 'Déploiement réussi.'
+        }
+        failure {
+            echo 'Échec du pipeline.'
         }
     }
 }
