@@ -22,7 +22,7 @@ Le schéma au format PNG est inclus ci-dessous et disponible à la racine du dos
 
 La reproduction à l'identique avec Jenkins est **partiellement possible** mais plusieurs informations sont manquantes ou incompatibles :
 
-- **`matrix.python` non définie** : le workflow référence `${{ matrix.python }}` dans `setup-python` mais aucune stratégie `matrix` n'est déclarée dans le job. La version Python n'est donc jamais réellement injectée — c'est un bug dans le workflow d'origine. Il est impossible de reproduire fidèlement un comportement indéfini.
+- **`matrix.python` non définie** : le workflow référence `${{ matrix.python }}` dans `setup-python` mais aucune stratégie `matrix` n'est déclarée dans le job. La version Python n'est donc jamais réellement injectée - c'est un bug dans le workflow d'origine. Il est impossible de reproduire fidèlement un comportement indéfini.
 - **`secrets.SONAR_TOKEN`** : le token SonarQube est stocké en secret GitHub. Sans accès à ce secret, la reproduction dans Jenkins nécessite de reconfigurer la credential dans Jenkins Credentials Manager.
 - **`actions/checkout@v6` et `actions/setup-python@v6`** : ces actions GitHub n'existent pas dans Jenkins. Il faut les remplacer par des étapes shell équivalentes.
 - **SonarQube Cloud vs self-hosted** : le workflow cible SonarQube Cloud. Dans Jenkins, on ciblera une instance locale.
@@ -33,12 +33,12 @@ La reproduction à l'identique avec Jenkins est **partiellement possible** mais 
 Critiques du fichier `compose.yaml` de fluffy-octo-sniffle :
 
 - **Tag `:latest` non déterministe** : `sonarqube:latest` et `sonarsource/sonar-scanner-cli` sans version fixe rendent les builds non reproductibles.
-- **Token en clair dans le fichier** : `SONAR_TOKEN=sqa_31c555e7...` est un secret exposé directement dans le fichier versionné — faille de sécurité critique.
+- **Token en clair dans le fichier** : `SONAR_TOKEN=sqa_31c555e7...` est un secret exposé directement dans le fichier versionné - faille de sécurité critique.
 - **Absence de réseau nommé explicite** : les services communiquent via le réseau par défaut de Compose, sans déclaration explicite.
 - **Absence de `healthcheck`** : aucun contrôle de santé sur SonarQube ; le scanner CLI peut démarrer avant que SonarQube soit prêt.
 - **Absence de `depends_on`** : le service `cli` ne déclare pas de dépendance sur `sonarqube`.
 - **Absence de `restart` policy** : aucune politique de redémarrage définie.
-- **Volume commenté avec chemin absolu hardcodé** : `/home/gael/Projects/...` laissé en commentaire — résidu de développement, non portable.
+- **Volume commenté avec chemin absolu hardcodé** : `/home/gael/Projects/...` laissé en commentaire - résidu de développement, non portable.
 - **Absence de limitation de ressources** : SonarQube est gourmand en mémoire, aucun `mem_limit` n'est défini.
 
 ## Question 5
@@ -107,3 +107,25 @@ La valeur est montée en lecture seule sous `/run/secrets/sonar_token`, invisibl
 FROM postgres:latest
 ENV POSTGRES_PASSWORD=mypassword
 ```
+
+## Question - Étape 9 : Rundeck
+
+Rundeck est un outil d'automatisation opérationnelle orienté runbooks, exécution planifiée, gestion des accès (RBAC) et audit des opérations sur des nœuds distants.
+
+### Étapes associables à Rundeck
+
+**Étape 8 - Déploiement sur la machine hôte**
+
+C'est l'usage le plus naturel. Rundeck peut orchestrer le déploiement (`docker pull`, `docker stop`, `docker run`) sur un ou plusieurs nœuds distants via SSH, avec :
+- contrôle d'accès fin (qui peut déclencher le déploiement)
+- logs centralisés et historique d'exécution
+- possibilité de rollback planifié ou manuel
+- déclenchement via API REST depuis Jenkins en fin de pipeline (Jenkins appelle Rundeck, Rundeck exécute sur l'hôte)
+
+Cela permet de **découpler la CI (Jenkins) du CD (Rundeck)**, ce qui est une bonne pratique : Jenkins construit et pousse l'image, Rundeck se charge du déploiement opérationnel.
+
+**Étape 7 - Maintenance du registre Docker**
+
+Rundeck peut gérer des tâches planifiées sur le registre : nettoyage des images obsolètes (`docker system prune`, suppression des tags anciens via l'API du registre), rotation des logs, vérification de la disponibilité du registre. Ces opérations récurrentes n'ont pas leur place dans un pipeline CI mais doivent être automatisées et auditables.
+
+Ces deux étapes illustrent la complémentarité Jenkins/Rundeck : Jenkins pour les pipelines de build, Rundeck pour les opérations d'infrastructure et de déploiement.
