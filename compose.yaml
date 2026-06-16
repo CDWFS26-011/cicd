@@ -28,6 +28,19 @@ services:
       - ci_network
     restart: unless-stopped
 
+  ssh_agent:
+    image: jenkins/ssh-agent:latest
+    container_name: jenkins_ssh_agent
+    environment:
+      - JENKINS_AGENT_SSH_PUBKEY=${SSH_PUBKEY}
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks:
+      - ci_network
+    restart: unless-stopped
+
   jenkins_cli_setup:
     image: jenkins/jenkins:lts-jdk21
     container_name: jenkins_cli_setup
